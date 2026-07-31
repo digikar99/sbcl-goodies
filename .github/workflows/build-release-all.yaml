@@ -1,0 +1,46 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "all" ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    uses: ./.github/workflows/build-linux.yaml
+
+  release:
+
+    needs: [linux]
+    if: always()          # runs even if one or more builds failed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout build scripts
+        uses: actions/checkout@v7
+
+      - name: Read build.env
+        id: buildenv
+        uses: falti/dotenv-action@f4656c46de6bc223dda660f6724d52537bc0642a # v1.1.5
+        with:
+          path: build.env
+          export-variables: true
+          keys-case: upper
+          log-variables: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./
+          # omitting `name:` to download whatever artifacts exist,
+          # including from builds that partially succeeded
+
+      - name: List artefacts
+        run: find ./ -type f
+
+      - name: Upload release
+        run: scripts/upload_release.sh "${{env.SBCL_VERSION}}" "${{env.REVISION}}"
