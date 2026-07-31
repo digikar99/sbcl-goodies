@@ -7,7 +7,8 @@ diff -Naur sbcl.old/binary-distribution.sh sbcl.new/binary-distribution.sh
      $b/output/sbcl.core $b/src/runtime/sbcl $b/output/prefix.def \
 -    $b/src/runtime/sbcl.mk \
 +    $b/src/runtime/sbcl.mk $b/src/runtime/binaries.mk $b/third_party/include \
-     `grep '^LIBSBCL=' $b/src/runtime/sbcl.mk | cut -d= -f2- | while read lib; do echo $b/src/runtime/$lib; done` \
+-    `grep '^LIBSBCL=' $b/src/runtime/sbcl.mk | cut -d= -f2- | while read lib; do echo $b/src/runtime/$lib; done` \
++    `for lib in $(grep '^LIBSBCL=' $b/src/runtime/sbcl.mk | cut -d= -f2-); do echo -n $b/src/runtime/$lib " "; done` \
 -    $b/BUGS $b/COPYING $b/CREDITS $b/INSTALL $b/NEWS $b/README \
 +    $b/BUGS $b/COPYING $b/COPYING.zstd $b/CREDITS $b/INSTALL $b/NEWS $b/README \
      $b/install.sh $b/find-gnumake.sh $b/sbcl-pwd.sh $b/run-sbcl.sh \
@@ -43,7 +44,7 @@ diff -Naur sbcl.old/src/cold/base-target-features.lisp-expr sbcl.new/src/cold/ba
 diff -Naur sbcl.old/src/runtime/binaries.mk sbcl.new/src/runtime/binaries.mk
 --- sbcl.old/src/runtime/binaries.mk	1969-12-31 17:00:00.000000000 -0700
 +++ sbcl.new/src/runtime/binaries.mk	2026-03-23 17:46:17.693704049 -0600
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,28 @@
 +include sbcl.mk
 +
 +all: targets
@@ -56,6 +57,10 @@ diff -Naur sbcl.old/src/runtime/binaries.mk sbcl.new/src/runtime/binaries.mk
 +	SLIBS=$(WHOLE_ARCHIVES) -Wl,--no-whole-archive
 +else ifeq ($(OS), Darwin)
 +	SLIBS=$(WHOLE_ARCHIVES) -Wl
++else ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(OS)))
++	SLIBS=$(WHOLE_ARCHIVES) -Wl,--no-whole-archive
++else
++	$(warning Unrecognized OS "$(OS)" -- SLIBS not set "," WHOLE_ARCHIVES ignored)
 +endif
 +
 +sbcl: $(LIBSBCL)

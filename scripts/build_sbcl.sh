@@ -39,6 +39,13 @@ if [ "$UNAME" == Linux ]; then
 
     export WHOLE_ARCHIVES="-Wl,--whole-archive $LIBFIXPOSIX $LIBCRYPTO $LIBSSL $LIBTLS"
 
+    SBCL_HOST="${SBCL_HOST} --noinform --no-userinit"
+    SBCL_BUILD_OPTIONS="--with-sb-core-compression \
+    --with-sb-linkable-runtime \
+    --without-gencgc --with-mark-region-gc \
+    --without-sb-eval \
+    --with-sb-fasteval"
+
 elif [ "$UNAME" == Darwin ]; then
     export SYS_LIBDIR="/opt/homebrew/Cellar"
     LIBZSTD=${SYS_LIBDIR}/zstd/1.5.7_1/lib/libzstd.a
@@ -52,25 +59,47 @@ elif [ "$UNAME" == Darwin ]; then
 
     # -force_load only works on one library at a time
     export WHOLE_ARCHIVES="-Wl,-force_load $LIBFIXPOSIX -Wl,-force_load $LIBCRYPTO -Wl,-force_load $LIBSSL -Wl $LIBTLS"
+
+    SBCL_HOST="${SBCL_HOST} --noinform --no-userinit"
+    SBCL_BUILD_OPTIONS="--with-sb-core-compression \
+    --with-sb-linkable-runtime \
+    --without-gencgc --with-mark-region-gc \
+    --without-sb-eval \
+    --with-sb-fasteval"
+
+
+elif [[ "$UNAME" == CYGWIN* || "$UNAME" == MINGW* ]] ; then
+
+    UNAME=Windows
+
+    export SYS_LIBDIR="/mingw64/lib"
+    LIBZSTD=${SYS_LIBDIR}/libzstd.a
+    # Quick hack, not safe for cross-compiling.
+    sed -i "s:-lzstd:$LIBZSTD:" src/runtime/Config.*
+    LIBSSL=${SYS_LIBDIR}/libssl.a
+    LIBTLS=${SYS_LIBDIR}/libtls.a
+    LIBCRYPTO="${SYS_LIBDIR}/libcrypto.a ${SYS_LIBDIR}/libcrypt32.a"
+
+    export WHOLE_ARCHIVES="$LIBSSL -Wl,--no-whole-archive $LIBCRYPTO"
+
+    SBCL_HOST="/mingw64/bin/sbcl --noinform --no-userinit"
+    SBCL_BUILD_OPTIONS="--fancy --with-sb-linkable-runtime"
 fi
 
 cp ../scripts/COPYING.zstd ./
 
-env SBCL_MAKE_PARALLEL=1 \
-    SBCL_MAKE_JOBS=-j4 \
-    ./make.sh --xc-host="${SBCL_HOST} --noinform --no-userinit" \
-    --with-sb-core-compression \
-    --with-sb-linkable-runtime \
-    --without-gencgc --with-mark-region-gc \
-    --without-sb-eval \
-    --with-sb-fasteval
+./make.sh --xc-host="$SBCL_HOST" $SBCL_BUILD_OPTIONS
 
 make -C src/runtime -f binaries.mk sbcl.extras
 mv -vf src/runtime/sbcl.extras src/runtime/sbcl
 
-# Include libfixposix headers
 mkdir -vp third_party/include
-cp -av ../destdir/usr/local/include/* third_party/include/
+if [[ "$UNAME" == "Linux" || "$UNAME" == "Darwin" ]] ; then
+    # Include libfixposix headers
+    cp -av ../destdir/usr/local/include/* third_party/include/
+else
+    touch third_party/include/empty
+fi
 
 cd ..
 
@@ -83,7 +112,7 @@ esac
 
 # Build source distribution
 # Despite the name, the source distributions are not identical
-SBCLDIST=sbcl-${SBCL_VERSION}+r${REVISION}-$ARCH-$(uname -s | tr '[:upper:]' '[:lower:]')
+SBCLDIST=sbcl-${SBCL_VERSION}+r${REVISION}-$ARCH-$(echo $UNAME | tr '[:upper:]' '[:lower:]')
 mv -v sbcl "${SBCLDIST}"
 "${SBCLDIST}"/source-distribution.sh "${SBCLDIST}"
 bzip2 "${SBCLDIST}"-source.tar
