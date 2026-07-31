@@ -14,9 +14,12 @@ jobs:
   linux:
     uses: ./.github/workflows/build-linux.yaml
 
+  darwin:
+    uses: ./.github/workflows/build-darwin.yaml
+
   release:
 
-    needs: [linux]
+    needs: [linux, darwin]
     if: always()          # runs even if one or more builds failed
     runs-on: ubuntu-latest
 
