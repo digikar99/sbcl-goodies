@@ -73,7 +73,7 @@ jobs:
       - name: 'Upload Artifacts'
         uses: actions/upload-artifact@v6
         with:
-          name: tarballs
+          name: windows-tarballs
           path: |
             ${{env.SRCDIST}}
             ${{env.BINDIST}}

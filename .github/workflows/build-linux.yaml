@@ -76,7 +76,7 @@ jobs:
       - name: 'Upload Artifacts'
         uses: actions/upload-artifact@v7
         with:
-          name: tarballs
+          name: linux-tarballs
           path: |
             ${{env.SRCDIST}}
             ${{env.BINDIST}}
