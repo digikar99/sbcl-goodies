@@ -9,7 +9,10 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    strategy:
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
     permissions:
       artifact-metadata: write
     steps:
@@ -63,25 +66,24 @@ jobs:
         run: scripts/build_sbcl.sh "${{env.SBCL_HOST}}" "${{env.SBCL_VERSION}}" "${{env.ASDF_VERSION}}" "${{env.REVISION}}" "${{env.CUSTOM_LIBDIR}}"
       - name: Export build.env
         run: |
-          SBCL_VERSION=${{steps.buildenv.outputs.sbcl_version}}
-          ASDF_VERSION=${{steps.buildenv.outputs.asdf_version}}
           LIBFIXPOSIX_VERSION=${{steps.buildenv.outputs.libfixposix_version}}
           OPENSSL_VERSION=$(brew info --json openssl | jq -r '.[0].installed[0].version')
           LIBTLS_VERSION=$(brew info --json libretls | jq -r '.[0].installed[0].version')
-          cat > darwin-notes.md << EOF
-          # Components:
-          - SBCL ${SBCL_VERSION}
-          - ASDF ${ASDF_VERSION}
+          cat > darwin-${{ runner.arch }}.md << EOF
+
+          **MacOS ($(uname -m)):**
+
           - libfixposix ${LIBFIXPOSIX_VERSION}
           - OpenSSL ${OPENSSL_VERSION}
           - LibTLS ${LIBTLS_VERSION}
+
           EOF
       - name: 'Upload Artifacts'
         uses: actions/upload-artifact@v6
         with:
-          name: darwin-tarballs
+          name: tarballs-darwin-${{ runner.arch }}
           path: |
             ${{env.SRCDIST}}
             ${{env.BINDIST}}
-            darwin-notes.md
+            darwin-${{ runner.arch }}.md
           retention-days: 5

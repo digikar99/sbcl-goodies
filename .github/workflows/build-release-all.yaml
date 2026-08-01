@@ -52,4 +52,4 @@ jobs:
         run: find ./ -type f
 
       - name: Upload release
-        run: scripts/upload_release.sh "${{env.SBCL_VERSION}}" "${{env.REVISION}}"
+        run: scripts/upload_release.sh "${{env.SBCL_VERSION}}" "${{env.ASDF_VERSION}}" "${{env.REVISION}}"

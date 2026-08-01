@@ -9,8 +9,10 @@ on:
 
 jobs:
   build:
-
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       artifact-metadata: write
 
@@ -58,24 +60,22 @@ jobs:
 
       - name: Export build.env
         run: |
-          echo "SBCL_HOST_VERSION=${{steps.buildenv.outputs.sbcl_host_version}}" >> ${GITHUB_ENV}
-          echo "SBCL_VERSION=${{steps.buildenv.outputs.sbcl_version}}" >> ${GITHUB_ENV}
-          echo "ASDF_VERSION=${{steps.buildenv.outputs.asdf_version}}" >> ${GITHUB_ENV}
           echo "OPENSSL_VERSION=$(pacman -Q mingw-w64-x86_64-openssl | cut -d' ' -f2)" >> ${GITHUB_ENV}
           echo "REVISION=${{steps.buildenv.outputs.revision}}" >> ${GITHUB_ENV}
-          cat > windows-notes.md << EOF
-          # Components:
-          - SBCL ${SBCL_VERSION}
-          - ASDF ${ASDF_VERSION}
+          cat > windows-${{ runner.arch }}.md << EOF
+
+          **Windows ($(uname -m)):**
+
           - OpenSSL ${OPENSSL_VERSION}
+
           EOF
 
       - name: 'Upload Artifacts'
         uses: actions/upload-artifact@v6
         with:
-          name: windows-tarballs
+          name: tarballs-windows-${{ runner.arch }}
           path: |
             ${{env.SRCDIST}}
             ${{env.BINDIST}}
-            windows-notes.md
+            windows-${{ runner.arch }}.md
           retention-days: 5

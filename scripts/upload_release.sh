@@ -3,7 +3,8 @@
 source $(dirname ${0})/lib.sh
 
 SBCL_VERSION=${1}
-REVISION=${2}
+ASDF_VERSION=${2}
+REVISION=${3}
 
 git config --global --add safe.directory "${GITHUB_WORKSPACE}"
 git config user.name "Shubhamkar Ayare"
@@ -13,14 +14,12 @@ RELEASE="${SBCL_VERSION}+r${REVISION}"
 TAG="v${RELEASE}"
 
 mkdir tarballs
-mv linux-tarballs/* tarballs/
-mv darwin-tarballs/* tarballs/
-mv windows-tarballs/* tarballs/
+mv tarballs*/* tarballs/
 
 touch notes.md
-cat tarballs/linux-notes.md >> notes.md
-cat tarballs/darwin-notes.md >> notes.md
-cat tarballs/windows-notes.md >> notes.md
+
+echo "SBCL ${SBCL_VERSION}, ASDF ${ASDF_VERSION}" > notes.md
+cat tarballs/*.md >> notes.md
 
 gh release create \
    ${TAG} \
