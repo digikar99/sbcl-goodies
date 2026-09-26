@@ -40,11 +40,7 @@ if [ "$UNAME" == Linux ]; then
     export WHOLE_ARCHIVES="-Wl,--whole-archive $LIBFIXPOSIX $LIBCRYPTO $LIBSSL $LIBTLS"
 
     SBCL_HOST="${SBCL_HOST} --noinform --no-userinit"
-    SBCL_BUILD_OPTIONS="--with-sb-core-compression \
-    --with-sb-linkable-runtime \
-    --without-gencgc --with-mark-region-gc \
-    --without-sb-eval \
-    --with-sb-fasteval"
+    SBCL_BUILD_OPTIONS="--fancy --with-sb-linkable-runtime"
 
 elif [ "$UNAME" == Darwin ]; then
     export SYS_LIBDIR="$(brew --prefix)"
@@ -61,11 +57,7 @@ elif [ "$UNAME" == Darwin ]; then
     export WHOLE_ARCHIVES="-Wl,-force_load $LIBFIXPOSIX -Wl,-force_load $LIBCRYPTO -Wl,-force_load $LIBSSL -Wl $LIBTLS"
 
     SBCL_HOST="${SBCL_HOST} --noinform --no-userinit"
-    SBCL_BUILD_OPTIONS="--with-sb-core-compression \
-    --with-sb-linkable-runtime \
-    --without-gencgc --with-mark-region-gc \
-    --without-sb-eval \
-    --with-sb-fasteval"
+    SBCL_BUILD_OPTIONS="--fancy --with-sb-linkable-runtime"
 
 
 elif [[ "$UNAME" == CYGWIN* || "$UNAME" == MINGW* ]] ; then
