@@ -13,14 +13,15 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
+    container: phusion/holy-build-box:4.0.2
     permissions:
       artifact-metadata: write
     steps:
       - name: OS setup
         run: |
-          sudo apt-get -y remove --autoremove --purge apache2 firefox powershell ubuntu-pro-client
-          sudo apt-get -y update
-          sudo apt-get -y upgrade
+          yum -y install dnf-plugins-core
+          yum config-manager --set-enabled powertools # required for texinfo
+          yum -y install git make perl check-devel texinfo check libzstd-devel wget
       - name: Checkout build scripts
         uses: actions/checkout@v7
       - name: Read build.env
@@ -31,15 +32,32 @@ jobs:
           export-variables: true
           keys-case: upper
           log-variables: true
-      - name: Install build deps
-        run: |
-          sudo apt-get -y install build-essential emacs-bin-common check
-          sudo apt-get -y install libzstd-dev libssl-dev libtls-dev
       - name: Setup build environment
         run: |
           CUSTOM_LIBDIR="${GITHUB_WORKSPACE}/static_libs"
           mkdir -vp "${CUSTOM_LIBDIR}"
           echo "CUSTOM_LIBDIR=${CUSTOM_LIBDIR}" >> "${GITHUB_ENV}"
+      - name: Build libretls
+        run: |
+          source /hbb_exe/activate
+          echo "$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="/hbb_exe/lib64/pkgconfig:$PKG_CONFIG_PATH"
+          pkg-config --list-all | grep -i openssl
+
+          curl -fsSL https://causal.agency/libretls/libretls-$LIBTLS_VERSION.tar.gz | tar xz
+          cd libretls-$LIBTLS_VERSION
+          ./configure --prefix=/hbb_exe --disable-shared
+          make && make install
+
+      - name: Build libzstd
+        run: |
+          ## This version of linux only ships the shared library libzstd.so and not
+          ## the static version. So, we compile from source
+          curl -fsSL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz | tar xz
+          cd zstd-1.5.7
+          make
+          make install
+
       - name: Checkout libfixposix
         uses: actions/checkout@v7
         with:
@@ -47,7 +65,9 @@ jobs:
           ref: "v${{env.LIBFIXPOSIX_VERSION}}"
           path: libfixposix
       - name: Build libfixposix
-        run: scripts/build_libfixposix.sh "${{env.CUSTOM_LIBDIR}}"
+        run: |
+          source /hbb_exe/activate
+          scripts/build_libfixposix.sh "${{env.CUSTOM_LIBDIR}}"
       - name: Fetch SBCL host
         run: scripts/fetch_sbcl_host.sh "${{env.SBCL_HOST_VERSION}}"
       - name: Checkout SBCL
@@ -59,12 +79,16 @@ jobs:
       - name: Patch SBCL
         run: cd sbcl && patch -p1 -i ../sbcl-customizations.patch
       - name: Build SBCL
-        run: scripts/build_sbcl.sh "${{env.SBCL_HOST}}" "${{env.SBCL_VERSION}}" "${{env.ASDF_VERSION}}" "${{env.REVISION}}" "${{env.CUSTOM_LIBDIR}}"
+        run: |
+          scripts/build_sbcl.sh "${{env.SBCL_HOST}}" "${{env.SBCL_VERSION}}" "${{env.ASDF_VERSION}}" "${{env.REVISION}}" "${{env.CUSTOM_LIBDIR}}"
       - name: Export build.env
         run: |
           LIBFIXPOSIX_VERSION=${{steps.buildenv.outputs.libfixposix_version}}
-          OPENSSL_VERSION=$(dpkg-query -W -f='${VERSION}' libssl-dev)
-          LIBTLS_VERSION=$(dpkg-query -W -f='${VERSION}' libtls-dev)
+
+          export PKG_CONFIG_PATH="/hbb_exe/lib64/pkgconfig:/hbb_exe/lib/pkgconfig:$PKG_CONFIG_PATH"
+          OPENSSL_VERSION=$(pkg-config --modversion openssl)
+
+          LIBTLS_VERSION="${{ env.LIBTLS_VERSION }}"
           cat > linux-${{ runner.arch }}.md << EOF
 
           **Linux ($(uname -m))**

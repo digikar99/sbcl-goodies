@@ -27,17 +27,24 @@ UNAME=$(uname -s)
 
 # Link runtime with goodies and overwrite the original
 if [ "$UNAME" == Linux ]; then
-    export SYS_LIBDIR="/usr/lib/"
-    LIBZSTD=$(find $SYS_LIBDIR -name "libzstd.a" | head -1)
+
+    LIBZSTD=$(find "/usr/local/" -name "libzstd.a" | head -1)
     # Quick hack, not safe for cross-compiling.
     sed -i "s:-lzstd:$LIBZSTD:" src/runtime/Config.*
 
+    # libcrypto/libssl are the prebuilt static libs baked into the
+    # holy-build-box image; libtls (libretls) is built into the same
+    # /hbb_exe prefix by the workflow. The exact lib vs lib64
+    # subdirectory isn't documented, so search the whole (small)
+    # /hbb_exe tree rather than guessing.
+    export SYS_LIBDIR="/hbb_exe"
     LIBFIXPOSIX=${CUSTOM_LIBDIR}/libfixposix.a
-    LIBCRYPTO=$(find $SYS_LIBDIR -name "libcrypto.a" | head -1)
-    LIBSSL=$(find $SYS_LIBDIR -name "libssl.a" | head -1)
-    LIBTLS=$(find $SYS_LIBDIR -name "libtls.a" | head -1)
+    LIBCRYPTO=$(find "${SYS_LIBDIR}" -name "libcrypto.a" | head -1)
+    LIBSSL=$(find "${SYS_LIBDIR}" -name "libssl.a" | head -1)
+    LIBZ=$(find "${SYS_LIBDIR}" -name "libz.a" | head -1)
+    LIBTLS=$(find "${SYS_LIBDIR}" -name "libtls.a" | head -1)
 
-    export WHOLE_ARCHIVES="-Wl,--whole-archive $LIBFIXPOSIX $LIBCRYPTO $LIBSSL $LIBTLS"
+    export WHOLE_ARCHIVES="-Wl,--whole-archive $LIBFIXPOSIX $LIBCRYPTO $LIBSSL -Wl,--no-whole-archive $LIBTLS $LIBZ"
 
     SBCL_HOST="${SBCL_HOST} --noinform --no-userinit"
     SBCL_BUILD_OPTIONS="--fancy --with-sb-linkable-runtime"
