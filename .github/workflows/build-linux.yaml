@@ -13,7 +13,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
-    container: ghcr.io/digikar99/docker-glibc217-openssl35-commonlisp
+    container: ghcr.io/digikar99/oldglibc-openssl35-commonlisp:glibc_2_28
     permissions:
       artifact-metadata: write
     steps:
@@ -37,16 +37,16 @@ jobs:
           rm "gh_${GH_VERSION}_linux_${GH_ARCH}.rpm"
 
       - name: Checkout build scripts
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v7
 
       - name: Read build.env
         id: buildenv
-        run: |
-          while IFS='=' read -r key value || [[ -n "$key" ]]; do
-            [[ -z "$key" || "$key" == \#* ]] && continue
-            echo "$key=$value" >> "$GITHUB_ENV"
-            echo "$key=$value" >> "$GITHUB_OUTPUT"
-          done < build.env
+        uses: falti/dotenv-action@f4656c46de6bc223dda660f6724d52537bc0642a # v1.1.5
+        with:
+          path: build.env
+          export-variables: true
+          keys-case: upper
+          log-variables: true
 
       - name: Setup build environment
         run: |
@@ -60,8 +60,11 @@ jobs:
           scripts/build_libfixposix.sh "${{env.CUSTOM_LIBDIR}}"
 
       - name: Checkout SBCL
-        run: |
-          git clone --depth 1 --branch sbcl-${SBCL_VERSION} https://github.com/sbcl/sbcl
+        uses: actions/checkout@v7
+        with:
+          repository: sbcl/sbcl
+          ref: "sbcl-${{env.SBCL_VERSION}}"
+          path: sbcl
 
       - name: Patch SBCL
         run: cd sbcl && patch -p1 -i ../sbcl-customizations.patch
@@ -89,7 +92,7 @@ jobs:
           EOF
 
       - name: 'Upload Artifacts'
-        uses: actions/upload-artifact@v4.6.2 # node 20
+        uses: actions/upload-artifact@v7
         with:
           name: tarballs-linux-${{ runner.arch }}
           path: |
